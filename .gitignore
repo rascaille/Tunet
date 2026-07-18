@@ -54,3 +54,9 @@ GEMINI.md
 .github/instructions/
 .github/copilot/
 AI_TOOLING.md
+
+# Local deployment backups
+backups/
+*.bak
+.env
+.env.*
