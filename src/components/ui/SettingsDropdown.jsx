@@ -1,6 +1,16 @@
 // Dropdown Menu Component that looks nice
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, Palette, LayoutGrid, Server, Type, Edit2, Check } from '../../icons';
+
+import {
+  Settings,
+  Palette,
+  LayoutGrid,
+  Server,
+  Type,
+  Edit2,
+  Check,
+  LogOut,
+} from '../../icons';
 
 export default function SettingsDropdown({
   onOpenSettings,
@@ -8,6 +18,7 @@ export default function SettingsDropdown({
   onOpenLayout,
   onOpenHeader,
   onToggleEdit,
+  onLogout,
   editMode,
   isMobile,
   t,
@@ -22,6 +33,7 @@ export default function SettingsDropdown({
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -44,7 +56,6 @@ export default function SettingsDropdown({
         />
       </button>
 
-      {/* Dropdown Menu */}
       <div
         className={`absolute top-full right-0 z-50 mt-2 w-56 origin-top-right transform rounded-2xl border border-white/10 bg-[#0f172a]/95 p-2 shadow-2xl backdrop-blur-xl transition-all duration-200 ${
           isOpen
@@ -62,12 +73,18 @@ export default function SettingsDropdown({
                 className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/10"
                 aria-label={editMode ? t('nav.done') : t('menu.edit')}
               >
-                <div className={`rounded-lg p-2 transition-colors ${
-                  editMode
-                    ? 'bg-[var(--accent-bg)] text-[var(--accent-color)] group-hover:bg-[var(--accent-color)] group-hover:text-white'
-                    : 'bg-orange-500/10 text-orange-400 group-hover:bg-orange-500 group-hover:text-white'
-                }`}>
-                  {editMode ? <Check className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
+                <div
+                  className={`rounded-lg p-2 transition-colors ${
+                    editMode
+                      ? 'bg-[var(--accent-bg)] text-[var(--accent-color)] group-hover:bg-[var(--accent-color)] group-hover:text-white'
+                      : 'bg-orange-500/10 text-orange-400 group-hover:bg-orange-500 group-hover:text-white'
+                  }`}
+                >
+                  {editMode ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Edit2 className="h-4 w-4" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-white">
@@ -78,6 +95,7 @@ export default function SettingsDropdown({
               <div className="mx-2 my-1 h-px bg-white/5" />
             </>
           )}
+
           <button
             onClick={() => handleSelect(onOpenTheme)}
             className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-white/10"
@@ -143,6 +161,27 @@ export default function SettingsDropdown({
               </p>
             </div>
           </button>
+
+          {typeof onLogout === 'function' && (
+            <>
+              <div className="mx-2 my-1 h-px bg-white/10" />
+              <button
+                onClick={() => handleSelect(onLogout)}
+                className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-red-500/10"
+                aria-label={t('system.oauth.logoutButton')}
+                data-testid="settings-menu-logout"
+              >
+                <div className="rounded-lg bg-red-500/10 p-2 text-red-400 transition-colors group-hover:bg-red-500 group-hover:text-white">
+                  <LogOut className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-400 transition-colors group-hover:text-red-300">
+                    {t('system.oauth.logoutButton')}
+                  </p>
+                </div>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

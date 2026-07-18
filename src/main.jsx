@@ -10,8 +10,10 @@ import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/ui/ToastContainer';
 import {
   clearBrowserHomeAssistantCredentials,
+  getRuntimeConfig,
   loadRuntimeConfig,
 } from './services/runtimeConfig';
+import { bootstrapDefaultProfile } from './services/defaultProfile';
 
 function isChunkLoadError(error) {
   const message = String(error?.message || error || '').toLowerCase();
@@ -137,9 +139,18 @@ function renderApplication(runtimeConfig) {
 
 async function bootstrap() {
   const runtimeConfig = await loadRuntimeConfig();
+  const publicRuntimeConfig = getRuntimeConfig();
 
   if (runtimeConfig.serviceAccountMode) {
     clearBrowserHomeAssistantCredentials();
+  }
+
+  if (publicRuntimeConfig.defaultProfileEnabled) {
+    try {
+      await bootstrapDefaultProfile({ enabled: true });
+    } catch (error) {
+      console.warn('Default profile bootstrap was skipped:', error);
+    }
   }
 
   renderApplication(runtimeConfig);

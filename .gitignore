@@ -63,3 +63,6 @@ backups/
 
 # Local runtime secrets
 secrets/
+
+# Local dashboard templates may reveal entity names and room layout.
+profiles/*.json

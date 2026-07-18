@@ -6,18 +6,30 @@ export const SERVICE_ACCOUNT_AUTH_METHOD = 'service_account';
 // Le backend la remplace par le véritable jeton serveur.
 export const SERVICE_ACCOUNT_PLACEHOLDER_TOKEN = 'tunet-service-account-proxy';
 
-export async function loadRuntimeConfig({
-  fetchImpl = globalThis.fetch,
-} = {}) {
+let cachedRuntimeConfig = Object.freeze({
+  serviceAccountMode: false,
+  defaultProfileEnabled: false,
+  authLogoutUrl: '',
+});
+
+const normalizePublicHttpsUrl = (value) => {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'https:' ? parsed.toString() : '';
+  } catch {
+    return '';
+  }
+};
+
+export async function loadRuntimeConfig({ fetchImpl = globalThis.fetch } = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('Runtime configuration fetch is unavailable');
   }
 
   const response = await fetchImpl('./api/runtime-config', {
     method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: { Accept: 'application/json' },
     credentials: 'same-origin',
     cache: 'no-store',
   });
@@ -29,15 +41,22 @@ export async function loadRuntimeConfig({
   }
 
   const body = await response.json();
-
-  return {
+  cachedRuntimeConfig = Object.freeze({
     serviceAccountMode: body?.serviceAccountMode === true,
-  };
+    defaultProfileEnabled: body?.defaultProfileEnabled === true,
+    authLogoutUrl: normalizePublicHttpsUrl(body?.authLogoutUrl),
+  });
+
+  // Keep the historical public return shape for existing consumers/tests.
+  return { serviceAccountMode: cachedRuntimeConfig.serviceAccountMode };
+}
+
+export function getRuntimeConfig() {
+  return cachedRuntimeConfig;
 }
 
 export function clearBrowserHomeAssistantCredentials() {
   clearOAuthTokens();
-
   try {
     globalThis.localStorage?.removeItem('ha_token');
     globalThis.localStorage?.removeItem('ha_url');
@@ -46,7 +65,6 @@ export function clearBrowserHomeAssistantCredentials() {
       'ha_auth_method',
       SERVICE_ACCOUNT_AUTH_METHOD
     );
-
     globalThis.sessionStorage?.removeItem('ha_token');
     globalThis.sessionStorage?.removeItem('ha_oauth_tokens');
   } catch {

@@ -1,6 +1,8 @@
 import { Plus, Check, Edit2 } from '../icons';
+
 import SettingsDropdown from '../components/ui/SettingsDropdown';
 import { usePages } from '../contexts';
+import { getRuntimeConfig } from '../services/runtimeConfig';
 
 /**
  * EditToolbar — add card, done, edit toggle, settings dropdown, connection dot.
@@ -22,6 +24,7 @@ export default function EditToolbar({
   t,
 }) {
   const { pageSettings } = usePages();
+  const { authLogoutUrl } = getRuntimeConfig();
 
   const handleToggleEdit = () => {
     const currentSettings = pageSettings[activePage];
@@ -30,6 +33,12 @@ export default function EditToolbar({
       window.dispatchEvent(new window.CustomEvent('tunet:edit-done'));
     }
     setEditMode(!editMode);
+  };
+
+  const handleLogout = () => {
+    if (!authLogoutUrl || typeof window === 'undefined') return;
+    // replace() prevents returning to a cached authenticated dashboard via Back.
+    window.location.replace(authLogoutUrl);
   };
 
   return (
@@ -47,19 +56,19 @@ export default function EditToolbar({
       )}
 
       {!isMobile && (
-      <button
-        onClick={handleToggleEdit}
-        className={`group rounded-full border p-2 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:outline-none ${editMode ? 'hover: border-[var(--accent-color)] bg-[var(--accent-bg)] text-[var(--accent-color)] hover:bg-[var(--accent-bg)] hover:text-white hover:shadow-lg' : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--glass-border)] hover:bg-white/10 hover:text-white'}`}
-        title={editMode ? t('nav.done') : t('menu.edit')}
-        aria-label={editMode ? t('nav.done') : t('menu.edit')}
-        aria-pressed={editMode}
-      >
-        {editMode ? (
-          <Check className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-        ) : (
-          <Edit2 className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
-        )}
-      </button>
+        <button
+          onClick={handleToggleEdit}
+          className={`group rounded-full border p-2 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:outline-none ${editMode ? 'hover: border-[var(--accent-color)] bg-[var(--accent-bg)] text-[var(--accent-color)] hover:bg-[var(--accent-bg)] hover:text-white hover:shadow-lg' : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--glass-border)] hover:bg-white/10 hover:text-white'}`}
+          title={editMode ? t('nav.done') : t('menu.edit')}
+          aria-label={editMode ? t('nav.done') : t('menu.edit')}
+          aria-pressed={editMode}
+        >
+          {editMode ? (
+            <Check className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+          ) : (
+            <Edit2 className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
+          )}
+        </button>
       )}
 
       <div className="relative">
@@ -72,10 +81,12 @@ export default function EditToolbar({
           onOpenLayout={() => setShowLayoutSidebar(true)}
           onOpenHeader={() => setShowHeaderEditModal(true)}
           onToggleEdit={isMobile ? handleToggleEdit : undefined}
+          onLogout={authLogoutUrl ? handleLogout : undefined}
           editMode={editMode}
           isMobile={isMobile}
           t={t}
         />
+
         {updateCount > 0 && (
           <div className="pointer-events-none absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--card-bg)] bg-gray-600 shadow-sm">
             <span className="pt-[1px] text-[11px] leading-none font-bold text-white">

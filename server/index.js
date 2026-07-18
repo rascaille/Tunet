@@ -10,9 +10,23 @@ import settingsRouter from './routes/settings.js';
 import { createHomeAssistantAuthMiddleware } from './haAuth.js';
 import { attachServiceAccountWebSocketProxy } from './haWebSocketProxy.js';
 import { getServiceAccountConfig } from './serviceAccount.js';
+import { isDefaultProfileEnabled, readDefaultProfile } from './defaultProfile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3002', 10);
+
+const getPublicLogoutUrl = () => {
+  const value = String(process.env.TUNET_AUTH_LOGOUT_URL || '').trim();
+  if (!value) return '';
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+};
 
 const resolveAppVersion = () => {
   const packageJsonPath = join(__dirname, '..', 'package.json');
@@ -93,14 +107,51 @@ export const createApp = ({
     next();
   });
 
-  // Public runtime information. Never expose URLs, tokens or secret-file paths.
+  // Public runtime information.
+  // Never expose credentials, HA URLs, tokens, or secret-file paths.
   app.get('/api/runtime-config', (_req, res) => {
     const serviceAccount = getServiceAccountConfig();
 
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       serviceAccountMode: Boolean(serviceAccount.enabled),
+      defaultProfileEnabled: isDefaultProfileEnabled(),
+      authLogoutUrl: getPublicLogoutUrl(),
     });
+  });
+
+  app.get('/api/default-profile', (req, res) => {
+    const serviceAccount = getServiceAccountConfig();
+    const requireProxyUser = process.env.TUNET_REQUIRE_PROXY_USER !== '0';
+    const remoteUser = String(req.get('Remote-User') || '').trim();
+
+    if (serviceAccount.enabled && requireProxyUser && !remoteUser) {
+      return res.status(401).json({
+        error: 'Authenticated proxy user required',
+      });
+    }
+
+    try {
+      const profile = readDefaultProfile();
+
+      if (!profile) {
+        return res.status(404).json({
+          error: 'Default profile is not configured',
+        });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json(profile);
+    } catch (error) {
+      console.error(
+        '[default-profile] Unable to read default profile:',
+        error instanceof Error ? error.message : 'unknown error'
+      );
+
+      return res.status(500).json({
+        error: 'Default profile is unavailable',
+      });
+    }
   });
 
   // API routes
