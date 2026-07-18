@@ -52,6 +52,8 @@ describe('public runtime configuration', () => {
       expect(response.headers.get('cache-control')).toBe('no-store');
       expect(body).toEqual({
         serviceAccountMode: false,
+        defaultProfileEnabled: false,
+        authLogoutUrl: '',
       });
 
       expect(JSON.stringify(body)).not.toContain('token');
