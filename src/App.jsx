@@ -896,9 +896,19 @@ export default function App() {
   const isOAuthCallback =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).has('auth_callback');
+  const isServiceAccount = config.authMethod === 'service_account';
   const hasAuth =
-    config.token || (config.authMethod === 'oauth' && (hasOAuthTokens() || isOAuthCallback));
+    isServiceAccount ||
+    config.token ||
+    (config.authMethod === 'oauth' &&
+      (hasOAuthTokens() || isOAuthCallback));
   const [showOnboarding, setShowOnboarding] = useState(() => !hasAuth);
+
+  useEffect(() => {
+    if (isServiceAccount && showOnboarding) {
+      setShowOnboarding(false);
+    }
+  }, [isServiceAccount, showOnboarding]);
 
   useEffect(() => {
     return subscribeToOAuthTokenChanges(() => {

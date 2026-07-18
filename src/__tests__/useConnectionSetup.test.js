@@ -258,3 +258,62 @@ describe('useConnectionSetup › setters', () => {
     expect(result.current.onboardingUrlError).toBe('Invalid URL');
   });
 });
+
+describe('useConnectionSetup › service account', () => {
+  it('does not reopen onboarding when service-account mode is active', () => {
+    hasOAuthTokens.mockReturnValue(false);
+
+    const props = makeProps({
+      config: {
+        url: 'https://tunet.example',
+        token: '',
+        authMethod: 'service_account',
+      },
+      showOnboarding: false,
+      showConfigModal: false,
+    });
+
+    renderHook(() => useConnectionSetup(props));
+
+    expect(props.setShowOnboarding).not.toHaveBeenCalledWith(true);
+  });
+
+  it('allows onboarding progression without browser credentials', () => {
+    const props = makeProps({
+      config: {
+        url: 'https://tunet.example',
+        token: '',
+        authMethod: 'service_account',
+      },
+    });
+
+    const { result } = renderHook(() => useConnectionSetup(props));
+
+    expect(result.current.canAdvanceOnboarding).toBe(true);
+  });
+
+  it('closes onboarding after the proxied connection succeeds', () => {
+    const props = makeProps({
+      config: {
+        url: 'https://tunet.example',
+        token: '',
+        authMethod: 'service_account',
+      },
+      connected: false,
+      showOnboarding: true,
+    });
+
+    const { rerender } = renderHook((currentProps) =>
+      useConnectionSetup(currentProps), {
+      initialProps: props,
+    });
+
+    rerender({
+      ...props,
+      connected: true,
+    });
+
+    expect(props.setShowOnboarding).toHaveBeenCalledWith(false);
+    expect(props.setShowConfigModal).toHaveBeenCalledWith(false);
+  });
+});

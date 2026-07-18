@@ -8,6 +8,10 @@ import { ConfigProvider } from './contexts/ConfigContext';
 import { PageProvider } from './contexts/PageContext';
 import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/ui/ToastContainer';
+import {
+  clearBrowserHomeAssistantCredentials,
+  loadRuntimeConfig,
+} from './services/runtimeConfig';
 
 function isChunkLoadError(error) {
   const message = String(error?.message || error || '').toLowerCase();
@@ -112,19 +116,56 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <ToastProvider>
-        <ConfigProvider>
-          <PageProvider>
-            <HashRouter>
-              <App />
-            </HashRouter>
-          </PageProvider>
-        </ConfigProvider>
-        <ToastContainer />
-      </ToastProvider>
-    </ErrorBoundary>
-  </StrictMode>
-);
+function renderApplication(runtimeConfig) {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <ToastProvider>
+          <ConfigProvider runtimeConfig={runtimeConfig}>
+            <PageProvider>
+              <HashRouter>
+                <App />
+              </HashRouter>
+            </PageProvider>
+          </ConfigProvider>
+          <ToastContainer />
+        </ToastProvider>
+      </ErrorBoundary>
+    </StrictMode>
+  );
+}
+
+async function bootstrap() {
+  const runtimeConfig = await loadRuntimeConfig();
+
+  if (runtimeConfig.serviceAccountMode) {
+    clearBrowserHomeAssistantCredentials();
+  }
+
+  renderApplication(runtimeConfig);
+}
+
+bootstrap().catch((error) => {
+  console.error('Failed to bootstrap Tunet:', error);
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        background: '#0f172a',
+        color: 'white',
+        fontFamily: 'system-ui, sans-serif',
+        textAlign: 'center',
+      }}
+    >
+      <div>
+        <h1>Unable to start Tunet</h1>
+        <p>The secure runtime configuration could not be loaded.</p>
+      </div>
+    </div>
+  );
+});

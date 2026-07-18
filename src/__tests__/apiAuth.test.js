@@ -229,3 +229,31 @@ describe('getHomeAssistantRequestHeaders', () => {
     setOAuthAuthProvider(null);
   });
 });
+describe('service-account API authentication', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('does not expose browser Home Assistant headers', async () => {
+    localStorage.setItem('ha_auth_method', 'service_account');
+    localStorage.setItem('ha_url', 'https://stale-ha.example');
+    localStorage.setItem('ha_token', 'stale-secret');
+
+    const {
+      getHomeAssistantRequestHeaders,
+      getValidatedHomeAssistantRequestHeaders,
+      getValidatedHomeAssistantRequestHeadersAsync,
+      hasHomeAssistantRequestAuth,
+    } = await import('../services/apiAuth');
+
+    expect(getHomeAssistantRequestHeaders()).toEqual({});
+    expect(getValidatedHomeAssistantRequestHeaders()).toEqual({});
+
+    await expect(
+      getValidatedHomeAssistantRequestHeadersAsync()
+    ).resolves.toEqual({});
+
+    expect(hasHomeAssistantRequestAuth()).toBe(true);
+  });
+});
