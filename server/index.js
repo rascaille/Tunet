@@ -9,6 +9,7 @@ import iconsRouter from './routes/icons.js';
 import settingsRouter from './routes/settings.js';
 import { createHomeAssistantAuthMiddleware } from './haAuth.js';
 import { attachServiceAccountWebSocketProxy } from './haWebSocketProxy.js';
+import { getServiceAccountConfig } from './serviceAccount.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3002', 10);
@@ -90,6 +91,16 @@ export const createApp = ({
       req.url = req.url.slice(ingressPath.length) || '/';
     }
     next();
+  });
+
+  // Public runtime information. Never expose URLs, tokens or secret-file paths.
+  app.get('/api/runtime-config', (_req, res) => {
+    const serviceAccount = getServiceAccountConfig();
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      serviceAccountMode: Boolean(serviceAccount.enabled),
+    });
   });
 
   // API routes
