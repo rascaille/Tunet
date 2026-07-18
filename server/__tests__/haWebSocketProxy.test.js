@@ -326,3 +326,167 @@ describe('service-account Home Assistant WebSocket proxy', () => {
     }
   });
 });
+
+const waitForMessageType = (socket, expectedType) =>
+  new Promise((resolve, reject) => {
+    const handleMessage = (data) => {
+      try {
+        const message = JSON.parse(data.toString('utf8'));
+
+        if (message.type !== expectedType) {
+          return;
+        }
+
+        socket.off('message', handleMessage);
+        socket.off('error', handleError);
+        resolve(message);
+      } catch (error) {
+        socket.off('message', handleMessage);
+        socket.off('error', handleError);
+        reject(error);
+      }
+    };
+
+    const handleError = (error) => {
+      socket.off('message', handleMessage);
+      reject(error);
+    };
+
+    socket.on('message', handleMessage);
+    socket.once('error', handleError);
+  });
+
+describe('early WebSocket authentication', () => {
+  it('buffers authentication sent before the Home Assistant socket opens', async () => {
+    const tempDirectory = mkdtempSync(
+      join(tmpdir(), 'tunet-ws-early-auth-')
+    );
+    const tokenFile = join(tempDirectory, 'ha-token');
+
+    writeFileSync(
+      tokenFile,
+      'server-side-secret-token\n',
+      { mode: 0o600 }
+    );
+
+    let clientSocket;
+    let proxyHttpServer;
+    let upstreamWebSocketServer;
+    let receivedUpstreamToken = null;
+    let upstreamConnectedAt = 0;
+    let clientAuthSentAt = 0;
+
+    try {
+      upstreamWebSocketServer = new WebSocketServer({
+        host: '127.0.0.1',
+        port: 0,
+        path: '/api/websocket',
+        perMessageDeflate: false,
+
+        // Retarde volontairement l'ouverture de la connexion HA.
+        verifyClient: (_info, callback) => {
+          setTimeout(() => callback(true), 250);
+        },
+      });
+
+      const upstreamPort = await waitForWebSocketServer(
+        upstreamWebSocketServer
+      );
+
+      upstreamWebSocketServer.on('connection', (socket) => {
+        upstreamConnectedAt = Date.now();
+
+        socket.send(
+          JSON.stringify({
+            type: 'auth_required',
+            ha_version: '2026.7.1',
+          })
+        );
+
+        socket.on('message', (data) => {
+          const message = JSON.parse(data.toString('utf8'));
+
+          if (message.type !== 'auth') {
+            return;
+          }
+
+          receivedUpstreamToken = message.access_token;
+
+          socket.send(
+            JSON.stringify({
+              type: 'auth_ok',
+              ha_version: '2026.7.1',
+            })
+          );
+        });
+      });
+
+      configureServiceAccount({
+        haUrl: `http://127.0.0.1:${upstreamPort}`,
+        tokenFile,
+      });
+
+      proxyHttpServer = createServer((_request, response) => {
+        response.writeHead(404);
+        response.end();
+      });
+
+      attachServiceAccountWebSocketProxy({
+        server: proxyHttpServer,
+      });
+
+      const proxyPort = await listenHttpServer(proxyHttpServer);
+
+      clientSocket = new WebSocket(
+        `ws://127.0.0.1:${proxyPort}/api/websocket`,
+        {
+          headers: {
+            'Remote-User': 'early-auth-user',
+          },
+          perMessageDeflate: false,
+        }
+      );
+
+      await waitForOpen(clientSocket);
+
+      const authOkPromise = waitForMessageType(
+        clientSocket,
+        'auth_ok'
+      );
+
+      clientAuthSentAt = Date.now();
+
+      // Comportement réel de home-assistant-js-websocket :
+      // authentification envoyée immédiatement après l'ouverture.
+      clientSocket.send(
+        JSON.stringify({
+          type: 'auth',
+          access_token: 'browser-placeholder-token',
+        })
+      );
+
+      await expect(authOkPromise).resolves.toMatchObject({
+        type: 'auth_ok',
+      });
+
+      expect(upstreamConnectedAt).toBeGreaterThan(
+        clientAuthSentAt
+      );
+      expect(receivedUpstreamToken).toBe(
+        'server-side-secret-token'
+      );
+      expect(receivedUpstreamToken).not.toBe(
+        'browser-placeholder-token'
+      );
+    } finally {
+      await closeWebSocket(clientSocket);
+      await closeHttpServer(proxyHttpServer);
+      await closeWebSocketServer(upstreamWebSocketServer);
+
+      rmSync(tempDirectory, {
+        recursive: true,
+        force: true,
+      });
+    }
+  });
+});

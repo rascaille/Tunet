@@ -108,11 +108,36 @@ export const attachServiceAccountWebSocketProxy = ({ server }) => {
 
     let upstreamAuthenticated = false;
     let clientAuthReceived = false;
+    let pendingClientAuth = false;
+
+    const sendServiceAccountAuth = () => {
+      if (
+        !clientAuthReceived ||
+        upstreamSocket.readyState !== WebSocket.OPEN
+      ) {
+        return false;
+      }
+
+      pendingClientAuth = false;
+
+      upstreamSocket.send(
+        JSON.stringify({
+          type: 'auth',
+          access_token: config.token,
+        })
+      );
+
+      return true;
+    };
 
     upstreamSocket.on('open', () => {
       console.log(
         `[service-account] Home Assistant WebSocket opened for proxy user "${remoteUser || 'unknown'}"`
       );
+
+      if (pendingClientAuth) {
+        sendServiceAccountAuth();
+      }
     });
 
     upstreamSocket.on('message', (data, isBinary) => {
@@ -143,21 +168,18 @@ export const attachServiceAccountWebSocketProxy = ({ server }) => {
 
         clientAuthReceived = true;
 
-        if (upstreamSocket.readyState !== WebSocket.OPEN) {
+        if (upstreamSocket.readyState === WebSocket.CONNECTING) {
+          pendingClientAuth = true;
+          return;
+        }
+
+        if (!sendServiceAccountAuth()) {
           closeSocket(
             clientSocket,
             1011,
             'Home Assistant connection unavailable'
           );
-          return;
         }
-
-        upstreamSocket.send(
-          JSON.stringify({
-            type: 'auth',
-            access_token: config.token,
-          })
-        );
 
         return;
       }
