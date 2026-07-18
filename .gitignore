@@ -60,3 +60,6 @@ backups/
 *.bak
 .env
 .env.*
+
+# Local runtime secrets
+secrets/
