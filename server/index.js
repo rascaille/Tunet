@@ -1,5 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { createServer } from 'node:http';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, dirname, extname, basename } from 'path';
 import { fileURLToPath } from 'url';
@@ -7,6 +8,7 @@ import profilesRouter from './routes/profiles.js';
 import iconsRouter from './routes/icons.js';
 import settingsRouter from './routes/settings.js';
 import { createHomeAssistantAuthMiddleware } from './haAuth.js';
+import { attachServiceAccountWebSocketProxy } from './haWebSocketProxy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3002', 10);
@@ -207,7 +209,11 @@ const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === proce
 const app = createApp();
 
 if (isMainModule) {
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = createServer(app);
+
+  attachServiceAccountWebSocketProxy({ server });
+
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(
       `[server] Tunet backend running on port ${PORT} (${process.env.NODE_ENV === 'production' ? 'production' : 'development'})`
     );
