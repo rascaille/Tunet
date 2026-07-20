@@ -9,6 +9,7 @@ import iconsRouter from './routes/icons.js';
 import settingsRouter from './routes/settings.js';
 import { createHomeAssistantAuthMiddleware } from './haAuth.js';
 import { attachServiceAccountWebSocketProxy } from './haWebSocketProxy.js';
+import { createHomeAssistantMediaProxy } from './haMediaProxy.js';
 import { getServiceAccountConfig } from './serviceAccount.js';
 import { isDefaultProfileEnabled, readDefaultProfile } from './defaultProfile.js';
 
@@ -106,6 +107,10 @@ export const createApp = ({
     }
     next();
   });
+
+  // Proxy strictement limité aux médias Home Assistant autorisés.
+  // Le véritable jeton reste exclusivement côté serveur.
+  app.use(createHomeAssistantMediaProxy());
 
   // Public runtime information.
   // Never expose credentials, HA URLs, tokens, or secret-file paths.

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { createElement } from 'react';
-import { useEntityHelpers } from '../hooks/useEntityHelpers';
+import { resolveEntityImageUrl, useEntityHelpers } from '../hooks/useEntityHelpers';
 import { ToastProvider } from '../contexts/ToastContext';
 
 // Mock the service module
@@ -283,5 +283,46 @@ describe('useEntityHelpers › climate maps', () => {
     expect(keys).toEqual(
       expect.arrayContaining(['Auto', 'Up', 'UpMid', 'Mid', 'DownMid', 'Down', 'Swing'])
     );
+  });
+});
+
+
+describe('resolveEntityImageUrl service-account media routing', () => {
+  it('strips media tokens while preserving harmless cache parameters', () => {
+    const result = resolveEntityImageUrl(
+      '/api/media_player_proxy/media_player.salon' +
+        '?token=secret&access_token=other&cache=abc',
+      'https://tunet.example',
+      true
+    );
+
+    expect(result).toBe(
+      'https://tunet.example' +
+        '/api/media_player_proxy/media_player.salon' +
+        '?cache=abc'
+    );
+  });
+
+  it('rewrites an absolute HA camera proxy URL to the Tunet origin', () => {
+    const result = resolveEntityImageUrl(
+      'https://ha.internal:8123' +
+        '/api/camera_proxy/camera.salon?token=secret',
+      'https://tunet.example/',
+      true
+    );
+
+    expect(result).toBe(
+      'https://tunet.example/api/camera_proxy/camera.salon'
+    );
+  });
+
+  it('keeps an external artwork URL unchanged', () => {
+    const result = resolveEntityImageUrl(
+      'https://cdn.example/cover.jpg',
+      'https://tunet.example',
+      true
+    );
+
+    expect(result).toBe('https://cdn.example/cover.jpg');
   });
 });

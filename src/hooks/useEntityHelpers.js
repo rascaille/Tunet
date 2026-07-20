@@ -3,6 +3,54 @@ import { ENTITY_UPDATE_THRESHOLD, MEDIA_TIMEOUT } from '../config/constants';
 import { callService as haCallService } from '../services';
 import { logger } from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
+import { getRuntimeConfig } from '../services/runtimeConfig';
+
+const SERVICE_ACCOUNT_MEDIA_PATH_PREFIXES = Object.freeze([
+  '/api/camera_proxy/',
+  '/api/camera_proxy_stream/',
+  '/api/media_player_proxy/',
+  '/api/image_proxy/',
+]);
+
+export function resolveEntityImageUrl(
+  rawUrl,
+  activeUrl,
+  serviceAccountMode = getRuntimeConfig().serviceAccountMode
+) {
+  if (!rawUrl) return null;
+
+  if (serviceAccountMode) {
+    try {
+      const parsed = new URL(rawUrl, 'http://tunet.local');
+
+      const isHomeAssistantMediaPath =
+        SERVICE_ACCOUNT_MEDIA_PATH_PREFIXES.some((prefix) =>
+          parsed.pathname.startsWith(prefix)
+        );
+
+      if (isHomeAssistantMediaPath) {
+        parsed.searchParams.delete('token');
+        parsed.searchParams.delete('access_token');
+
+        return (
+          `${String(activeUrl || '').replace(/\/$/, '')}` +
+          `${parsed.pathname}${parsed.search}${parsed.hash}`
+        );
+      }
+    } catch {
+      // Revenir au comportement historique pour une URL non standard.
+    }
+  }
+
+  if (
+    rawUrl.startsWith('http://') ||
+    rawUrl.startsWith('https://')
+  ) {
+    return rawUrl;
+  }
+
+  return `${String(activeUrl || '').replace(/\/$/, '')}${rawUrl}`;
+}
 
 /**
  * Shared Home-Assistant entity accessor helpers:  getS, getA, getEntityImageUrl,
@@ -37,11 +85,7 @@ export function useEntityHelpers({ entities, conn, activeUrl, now, t }) {
   );
 
   const getEntityImageUrl = useCallback(
-    (rawUrl) => {
-      if (!rawUrl) return null;
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) return rawUrl;
-      return `${activeUrl.replace(/\/$/, '')}${rawUrl}`;
-    },
+    (rawUrl) => resolveEntityImageUrl(rawUrl, activeUrl),
     [activeUrl]
   );
 
