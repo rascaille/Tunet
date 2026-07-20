@@ -31,7 +31,12 @@ export function useConnectionSetup({
 
   // ── Auto-close onboarding when OAuth connects ──────────────────────────
   useEffect(() => {
-    if (connected && config.authMethod === 'oauth' && showOnboarding) {
+    if (
+      connected &&
+      (config.authMethod === 'oauth' ||
+        config.authMethod === 'service_account') &&
+      showOnboarding
+    ) {
       setShowOnboarding(false);
       setShowConfigModal(false);
     }
@@ -46,7 +51,10 @@ export function useConnectionSetup({
       new URLSearchParams(window.location.search).has('auth_callback');
     if (isOAuthCallback) return;
 
-    const hasAuth = config.token || (config.authMethod === 'oauth' && hasOAuthTokens());
+    const hasAuth =
+      config.authMethod === 'service_account' ||
+      config.token ||
+      (config.authMethod === 'oauth' && hasOAuthTokens());
     if (!hasAuth && !showOnboarding && !showConfigModal) {
       setShowOnboarding(true);
       setOnboardingStep(0);
@@ -118,11 +126,16 @@ export function useConnectionSetup({
   // ── Derived: can the user advance past onboarding step 0? ──────────────
   const canAdvanceOnboarding =
     onboardingStep === 0
-      ? config.authMethod === 'oauth'
-        ? Boolean(config.url && validateUrl(config.url) && hasOAuthTokens())
-        : Boolean(
-            config.url && config.token && validateUrl(config.url) && connectionTestResult?.success
-          )
+      ? config.authMethod === 'service_account'
+        ? true
+        : config.authMethod === 'oauth'
+          ? Boolean(config.url && validateUrl(config.url) && hasOAuthTokens())
+          : Boolean(
+              config.url &&
+                config.token &&
+                validateUrl(config.url) &&
+                connectionTestResult?.success
+            )
       : true;
 
   const isOnboardingActive = showOnboarding;

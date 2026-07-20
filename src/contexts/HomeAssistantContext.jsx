@@ -204,6 +204,7 @@ export const HomeAssistantProvider = ({ children, config }) => {
   // Connect to Home Assistant
   useEffect(() => {
     const isOAuth = config.authMethod === 'oauth';
+    const isServiceAccount = config.authMethod === 'service_account';
     const hasToken = !!config.token;
     const hasOAuth = hasOAuthTokens();
     const isOAuthCallback =
@@ -353,6 +354,15 @@ export const HomeAssistantProvider = ({ children, config }) => {
 
     const persistConfig = (urlUsed) => {
       try {
+        if (isServiceAccount) {
+          localStorage.removeItem('ha_url');
+          localStorage.removeItem('ha_fallback_url');
+          localStorage.removeItem('ha_token');
+          globalThis.sessionStorage.removeItem('ha_token');
+          localStorage.setItem('ha_auth_method', 'service_account');
+          return;
+        }
+
         localStorage.setItem('ha_url', urlUsed.replace(/\/$/, ''));
         if (!isOAuth) {
           localStorage.setItem('ha_token', config.token || '');

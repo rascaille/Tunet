@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { themes } from '../config/themes';
 import { DEFAULT_LANGUAGE, normalizeLanguage } from '../i18n';
 import { hashPin, verifyPin } from '../utils';
+import { createServiceAccountClientConfig } from '../services/runtimeConfig';
 
 /** @typedef {import('../types/dashboard').ConfigContextValue} ConfigContextValue */
 /** @typedef {import('../types/dashboard').ConfigProviderProps} ConfigProviderProps */
@@ -31,7 +32,10 @@ export const useConfig = () => {
 };
 
 /** @param {ConfigProviderProps} props */
-export const ConfigProvider = ({ children }) => {
+export const ConfigProvider = ({
+  children,
+  runtimeConfig = { serviceAccountMode: false },
+}) => {
   useEffect(() => {
     try {
       localStorage.setItem(CONFIG_STORAGE_VERSION_KEY, CONFIG_STORAGE_VERSION);
@@ -209,6 +213,12 @@ export const ConfigProvider = ({ children }) => {
 
   const [config, setConfig] = useState(() => {
     if (typeof globalThis.window !== 'undefined') {
+      if (runtimeConfig.serviceAccountMode) {
+        return createServiceAccountClientConfig(
+          globalThis.window.location.origin
+        );
+      }
+
       // Ingress auto-detection: if served under /api/hassio_ingress/<token>,
       // connect to HA's root URL via Token (OAuth often fails in Ingress iframe)
       const path = globalThis.window.location.pathname;

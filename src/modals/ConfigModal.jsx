@@ -190,21 +190,40 @@ export default function ConfigModal({
     if (!isOnboardingActive) onClose?.();
   };
 
+  const authMethod = config.authMethod || 'oauth';
+  const isOAuth = authMethod === 'oauth';
+  const isServiceAccount = authMethod === 'service_account';
+
   const TABS = [
-    { key: 'connection', icon: Wifi, label: t('system.tabConnection') },
-    // Appearance and Layout have been moved to Sidebars
-    // { key: 'appearance', icon: Palette, label: t('system.tabAppearance') },
-    // { key: 'layout', icon: LayoutGrid, label: t('system.tabLayout') },
+    ...(isServiceAccount
+      ? []
+      : [
+          {
+            key: 'connection',
+            icon: Wifi,
+            label: t('system.tabConnection'),
+          },
+        ]),
     { key: 'profiles', icon: UserCircle2, label: t('system.tabProfiles') },
     { key: 'updates', icon: Download, label: t('updates.title') },
   ];
 
   useEffect(() => {
-    const supportedTabs = new Set(['connection', 'profiles', 'updates']);
+    const supportedTabs = new Set(
+      isServiceAccount
+        ? ['profiles', 'updates']
+        : ['connection', 'profiles', 'updates']
+    );
+
     if (!isLayoutPreview && !supportedTabs.has(configTab)) {
-      setConfigTab('connection');
+      setConfigTab(isServiceAccount ? 'profiles' : 'connection');
     }
-  }, [configTab, isLayoutPreview, setConfigTab]);
+  }, [
+    configTab,
+    isLayoutPreview,
+    isServiceAccount,
+    setConfigTab,
+  ]);
 
   const availableTabs = isLayoutPreview
     ? [{ key: 'layout', icon: LayoutGrid, label: t('system.tabLayout') }]
@@ -227,9 +246,6 @@ export default function ConfigModal({
   };
 
   // ─── Auth Method Toggle (shared between connection tab & onboarding) ───
-  const authMethod = config.authMethod || 'oauth';
-  const isOAuth = authMethod === 'oauth';
-
   const renderAuthMethodToggle = (showRecommended = false) => (
     <div className="space-y-2">
       <label className="ml-1 text-xs font-bold text-[var(--text-muted)] uppercase">
@@ -2214,7 +2230,9 @@ export default function ConfigModal({
                   </div>
                 )}
 
-                {configTab === 'connection' && renderConnectionTab()}
+                {configTab === 'connection' &&
+                  !isServiceAccount &&
+                  renderConnectionTab()}
                 {configTab === 'profiles' && renderProfilesTab()}
                 {configTab === 'updates' && renderUpdatesTab()}
               </div>

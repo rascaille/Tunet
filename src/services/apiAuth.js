@@ -19,6 +19,8 @@ export const getStoredAuthMethod = () => {
 };
 
 const isOAuthAuthMethod = () => getStoredAuthMethod() === 'oauth';
+const isServiceAccountAuthMethod = () =>
+  getStoredAuthMethod() === 'service_account';
 
 const getOAuthAuth = () => oauthAuthProvider?.current ?? detachedOAuthAuth ?? null;
 
@@ -140,7 +142,7 @@ export function notifyHomeAssistantApiUnauthorized(message = 'Home Assistant aut
   if (authMethod === 'oauth') {
     clearCachedOAuthAuth();
     clearOAuthTokens();
-  } else {
+  } else if (authMethod !== 'service_account') {
     clearStoredTokenAuth();
   }
 
@@ -208,6 +210,10 @@ const getStoredFallbackUrl = () => {
 };
 
 export function getHomeAssistantRequestHeaders() {
+  if (isServiceAccountAuthMethod()) {
+    return {};
+  }
+
   const headers = {};
   const haUrl = getStoredUrl();
   const fallbackUrl = getStoredFallbackUrl();
@@ -229,6 +235,10 @@ export function getHomeAssistantRequestHeaders() {
 }
 
 export async function getHomeAssistantRequestHeadersAsync({ forceRefreshOAuth = false } = {}) {
+  if (isServiceAccountAuthMethod()) {
+    return {};
+  }
+
   const headers = {};
   const haUrl = getStoredUrl();
   const fallbackUrl = getStoredFallbackUrl();
@@ -268,12 +278,20 @@ export async function getHomeAssistantRequestHeadersAsync({ forceRefreshOAuth = 
 }
 
 export function hasHomeAssistantRequestAuth() {
+  if (isServiceAccountAuthMethod()) {
+    return true;
+  }
+
   const headers = getHomeAssistantRequestHeaders();
   return Boolean(headers['x-ha-url'] && headers.Authorization);
 }
 
 export function getValidatedHomeAssistantRequestHeaders() {
   const headers = getHomeAssistantRequestHeaders();
+
+  if (isServiceAccountAuthMethod()) {
+    return headers;
+  }
 
   if (!headers['x-ha-url']) {
     throw notifyHomeAssistantApiUnauthorized('Missing Home Assistant URL');
@@ -288,6 +306,10 @@ export function getValidatedHomeAssistantRequestHeaders() {
 
 export async function getValidatedHomeAssistantRequestHeadersAsync(options = {}) {
   const headers = await getHomeAssistantRequestHeadersAsync(options);
+
+  if (isServiceAccountAuthMethod()) {
+    return headers;
+  }
 
   if (!headers['x-ha-url']) {
     throw notifyHomeAssistantApiUnauthorized('Missing Home Assistant URL');

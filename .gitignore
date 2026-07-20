@@ -54,3 +54,15 @@ GEMINI.md
 .github/instructions/
 .github/copilot/
 AI_TOOLING.md
+
+# Local deployment backups
+backups/
+*.bak
+.env
+.env.*
+
+# Local runtime secrets
+secrets/
+
+# Local dashboard templates may reveal entity names and room layout.
+profiles/*.json

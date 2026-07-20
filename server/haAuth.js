@@ -10,6 +10,7 @@ import {
 } from 'home-assistant-js-websocket';
 import { WebSocket as NodeWebSocket } from 'ws';
 import { createHash } from 'node:crypto';
+import { getServiceAccountConfig } from './serviceAccount.js';
 
 const DEFAULT_CACHE_TTL_MS = Math.min(
   Math.max(Number(process.env.HA_AUTH_CACHE_TTL_MS) || 15_000, 1_000),
@@ -374,6 +375,7 @@ const resolveValidatedHomeAssistantUser = createValidatedHomeAssistantUserResolv
 
 export const createHomeAssistantAuthMiddleware = ({
   validateHomeAssistantUser = resolveValidatedHomeAssistantUser,
+  serviceAccountConfigProvider = getServiceAccountConfig,
 } = {}) => {
   return async (req, res, next) => {
     const trustedSupervisorUser = getTrustedSupervisorUser(req);
@@ -381,6 +383,40 @@ export const createHomeAssistantAuthMiddleware = ({
       req.authenticatedHaUser = trustedSupervisorUser;
       req.authenticatedHaUrl = null;
       next();
+      return;
+    }
+
+    const serviceAccount = serviceAccountConfigProvider();
+
+    if (serviceAccount?.enabled) {
+      const proxyUser = req.get('remote-user');
+
+      if (serviceAccount.requireProxyUser && !proxyUser) {
+        sendJsonError(
+          res,
+          401,
+          'Missing authenticated reverse-proxy user',
+          'PROXY_USER_REQUIRED'
+        );
+        return;
+      }
+
+      try {
+        const user = await validateHomeAssistantUser({
+          haUrl: serviceAccount.haUrl,
+          accessToken: serviceAccount.token,
+        });
+
+        req.authenticatedHaUser = user;
+        req.authenticatedHaUrl = serviceAccount.haUrl;
+        req.authenticatedProxyUser = proxyUser || null;
+        next();
+      } catch (error) {
+        sendValidationFailure(res, error, {
+          haUrls: [serviceAccount.haUrl],
+        });
+      }
+
       return;
     }
 
